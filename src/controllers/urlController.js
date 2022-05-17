@@ -1,6 +1,6 @@
 const urlModel = require("../Models/urlModel");
 const shortId=require("shortid")
-const validUrl=require("valid-url")
+const validUrl=require("valid-url");
 const isValid = function (value) {
     if (typeof value === "undefined" || value === null) return false;
     if (typeof value === "string" && value.trim().length === 0) return false;
@@ -17,8 +17,9 @@ const shortenUrl=async function (req,res) {
         if (!isValid(longUrl)) {
             return res.status(400).send({status:false,message:'longurl is required'})
         }
-        if (!validUrl.isUri(longUrl)) {
-            return res.status(400).send({status:false,message:'please provide a valid url'})
+
+        if (!validUrl.isWebUri(longUrl)) {
+            return res.status(400).send({status:false,message:'please provide a valid url2'})
         }
         const checkUrl=await urlModel.findOne({longUrl:longUrl})
         if(checkUrl){
@@ -40,6 +41,15 @@ const shortenUrl=async function (req,res) {
 
 const getUrl=async function (req,res) {
     try {
+        const urlCode=req.params.urlCode
+        if (Object.keys(urlCode)==0) {
+            return res.status(400).send({status:false,message:'please provide url code in params'})
+        }
+        const url=await urlModel.findOne({urlCode:urlCode})
+        if(!url){
+            return res.status(404).send({status:false,message:'no url found with this code,please check input and try again'})
+        }
+        return res.status(302).redirect(url.longUrl)
         
     } catch (error) {
         return res.status(500).send({status:false,message:error.message})
