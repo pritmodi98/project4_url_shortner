@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-// const bookController = require("../controllers/bookController");
+const urlController = require("../controllers/urlController");
 
-
-
+router.post("/url/shorten",urlController.shortenUrl)
+router.get("/:urlCode",urlController.getUrl)
 
 
 module.exports=router;
