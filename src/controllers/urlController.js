@@ -52,10 +52,10 @@ const shortenUrl=async function (req,res) {
         let cachedData = await GET_ASYNC(`${longUrl}`)
         if (cachedData) { 
             // console.log(cachedData)
-            // let obj=JSON.parse(cachedData)
+            let obj=JSON.parse(cachedData)
             // console.log(obj)
             console.log("Data from cache!!")
-            return res.status(200).send({ status: true,message:'already shortUrl created', data: JSON.parse(cachedData)}) 
+            return res.status(200).send({ status: true,message:'already shortUrl created', data:obj}) 
            }
 
         const checkUrl=await urlModel.findOne({longUrl:longUrl})
@@ -69,7 +69,15 @@ const shortenUrl=async function (req,res) {
         data['urlCode']=urlCode
     
         const createdData=await urlModel.create(data)
-        await SET_ASYNC(`${longUrl}`, JSON.stringify(createdData))
+        // await SET_ASYNC(`${longUrl}`, JSON.stringify(createdData))
+        redisClient.set(`${longUrl}`, JSON.stringify(createdData),function (err,reply) {
+            if(err) throw err;
+            redisClient.expire(`${longUrl}`, 20, function (err, reply) {
+              if(err) throw err;
+              console.log(reply);
+            });
+        })
+        console.log('data created in mongoDb server')
         return res.status(201).send({status:true,data:createdData})
     } catch (error) {
         return res.status(500).send({status:false,message:error.message})
