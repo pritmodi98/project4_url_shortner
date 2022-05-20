@@ -52,8 +52,11 @@ const shortenUrl=async function (req,res) {
             return res.status(400).send({status:false,message:'please provide a valid url'})
         }
 
-        let cachedData = await GET_ASYNC(`${longUrl}`)
-        if (cachedData) { return res.status(200).send({ status: true, data: JSON.parse(cachedData) }) }
+        let cachedData = await GET_ASYNC(`${longUrl.longUrl}`)
+        if (cachedData) { 
+            console.log(cachedData)
+            return res.status(200).send({ status: true, data: JSON.parse(cachedData) }) 
+           }
 
         const checkUrl=await urlModel.findOne({longUrl:longUrl})
         if(checkUrl){
@@ -67,7 +70,7 @@ const shortenUrl=async function (req,res) {
     
         const createdData=await urlModel.create(data)
         // await SET_ASYNC(`${longUrl}`, JSON.stringify(data), "EX", 120);
-        await SET_ASYNC(`${urlCode}`, JSON.stringify(data.longUrl), "EX", 10)
+        await SET_ASYNC(`${longUrl}`, JSON.stringify(createdData), "EX", 120)
 
         return res.status(201).send({status:true,data:createdData})
     } catch (error) {
@@ -79,11 +82,13 @@ const shortenUrl=async function (req,res) {
 const getUrl=async function (req,res) {
     try {
         const urlCode=req.params.urlCode
-        if (Object.keys(urlCode)==0) {  //['0']==
+        if (Object.keys(urlCode)==0) { 
             return res.status(400).send({status:false,message:'please provide url code in params'})
         }
         let cahcedProfileData = await GET_ASYNC(`${urlCode}`)
+      
         if(cahcedProfileData) {
+            // console.log(`cache data:${cahcedProfileData}`)
             console.log('cache data')
             console.log('==========')
             return res.status(302).redirect(JSON.parse(cahcedProfileData))
@@ -92,15 +97,16 @@ const getUrl=async function (req,res) {
         if(!url){
             return res.status(404).send({status:false,message:'no url found with this code,please check input and try again'})
         }
-        await SET_ASYNC(`${urlCode}`, JSON.stringify(url.longUrl), "EX", 10)
+        // const storeData=await SET_ASYNC(`${urlCode}`, JSON.stringify(url.longUrl), "EX", 10)
+        // console.log(`from mongodb server:${storeData}`)
 
-        // redisClient.set(`${urlCode}`, JSON.stringify(url.longUrl),function (err,reply) {
-        //     if(err) throw err;
-        //     redisClient.expire(`${urlCode}`, 10, function (err, reply) {
-        //       if(err) throw err;
-        //       console.log(reply);
-        //     });
-        // })
+        redisClient.set(`${urlCode}`, JSON.stringify(url.longUrl),function (err,reply) {
+            if(err) throw err;
+            redisClient.expire(`${urlCode}`, 10, function (err, reply) {
+              if(err) throw err;
+              console.log(reply);
+            });
+        })
         console.log('quering from MongoDB server')
         console.log('==========')
         return res.status(302).redirect(url.longUrl)
