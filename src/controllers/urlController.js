@@ -60,7 +60,7 @@ const shortenUrl=async function (req,res) {
 
         const checkUrl=await urlModel.findOne({longUrl:longUrl})
         if(checkUrl){
-            return res.status(200).send({status:true,data:checkUrl})
+            return res.status(200).send({status:true,message:'from DB',data:checkUrl})
         }    
         
         const urlCode=shortId.generate()
