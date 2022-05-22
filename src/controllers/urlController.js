@@ -1,6 +1,6 @@
 const urlModel = require("../Models/urlModel");
 const shortId=require("shortid")
-const validUrl=require("valid-url");
+// const validUrl=require("valid-url");
 const redis = require("redis");
 const { promisify } = require("util");
 const isValid = function (value) {
@@ -24,8 +24,7 @@ const isValid = function (value) {
     console.log("Connected to Redis..");
   });
   
-  
-  
+
   //1. connect to the server
   //2. use the commands :
   
@@ -37,33 +36,50 @@ const isValid = function (value) {
 const shortenUrl=async function (req,res) {
     try {
         const data=req.body
-        const {longUrl}=data
+        let {longUrl}=data
         if (Object.keys(data).length===0) {
             return res.status(400).send({status:false,message:'no data provided'})
         }
         if (!isValid(longUrl)) {
             return res.status(400).send({status:false,message:'longurl is required'})
         }
+        longUrl=longUrl.trim()
+        if (!(longUrl.includes('//'))) {
+            return res.status(400).send({status:false,msg:'Invalid longUrl'})
+        }
+        const urlParts=longUrl.split('//')
+        const scheme=urlParts[0]
+        const uri=urlParts[1]
 
-        if (!validUrl.isWebUri(longUrl)) {
-            return res.status(400).send({status:false,message:'please provide a valid url'})
+
+        if (!(uri.includes('.'))) {
+            return res.status(400).send({status:false,msg:'Invalid longUrl'})
+        }
+        const uriParts=uri.split('.')
+        if (!((scheme==='http:' || scheme==='https:') && (uriParts[0].trim().length) && (uriParts[1].trim().length))) {
+            return res.status(400).send({status:false,msg:'Invalid longUrl'}) 
         }
 
+        // if (!validUrl.isWebUri(longUrl)) {
+        //     return res.status(400).send({status:false,message:'please provide a valid url'})
+        // }
+
         let cachedData = await GET_ASYNC(`${longUrl}`)
+        console.log(cachedData)
         if (cachedData) { 
-            // console.log(cachedData)
             let obj=JSON.parse(cachedData)
             // console.log(obj)
             console.log("Data from cache!!")
-            return res.status(200).send({ status: true,message:'already shortUrl created', data:obj}) 
+            return res.status(200).send({ status: true,message:'already shortUrl created', data:{urlCode:obj.urlCode,longUrl:obj.longUrl,shortUrl:obj.shortUrl}}) 
            }
 
-        const checkUrl=await urlModel.findOne({longUrl:longUrl})
+        const checkUrl=await urlModel.findOne({longUrl:longUrl}).select({_id:0,__v:0})
         if(checkUrl){
+            console.log('data from DB')
             return res.status(200).send({status:true,message:'from DB',data:checkUrl})
         }    
         
-        const urlCode=shortId.generate()
+        const urlCode=shortId.generate().toLowerCase()
         const shortUrl="http://localhost:3000/" + urlCode
         data['shortUrl']=shortUrl
         data['urlCode']=urlCode
@@ -74,7 +90,7 @@ const shortenUrl=async function (req,res) {
             if(err) throw err;
             redisClient.expire(`${longUrl}`, 20, function (err, reply) {
               if(err) throw err;
-              console.log(reply);
+              console.log(reply); 
             });
         })
         console.log('data created in mongoDb server')
@@ -107,7 +123,7 @@ const getUrl=async function (req,res) {
 
         redisClient.set(`${urlCode}`, JSON.stringify(url.longUrl),function (err,reply) {
             if(err) throw err;
-            redisClient.expire(`${urlCode}`, 10, function (err, reply) {
+            redisClient.expire(`${urlCode}`, 20, function (err, reply) {
               if(err) throw err;
               console.log(reply);
             });
